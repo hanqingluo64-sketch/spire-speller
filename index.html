@@ -1,0 +1,261 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Spire Speller</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600;700&family=Lato:wght@400;700&display=swap');
+      
+      body {
+        font-family: 'Lato', sans-serif;
+        background-color: #0f172a;
+        color: white;
+        overflow: hidden; /* Prevent scrolling during drag/combat */
+      }
+      
+      .font-serif {
+        font-family: 'Crimson Pro', serif;
+      }
+
+      /* Animated Background */
+      .bg-stars {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: -1;
+        background: radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%);
+        overflow: hidden;
+      }
+      
+      .transition-bg {
+        transition: background 1s ease-in-out;
+      }
+      
+      .star {
+        position: absolute;
+        width: 2px;
+        height: 2px;
+        background: white;
+        border-radius: 50%;
+        animation: twinkle 5s infinite;
+      }
+
+      @keyframes twinkle {
+        0% { opacity: 0; transform: scale(1); }
+        50% { opacity: 0.7; transform: scale(1.5); }
+        100% { opacity: 0; transform: scale(1); }
+      }
+
+      /* Glassmorphism Panel */
+      .glass-panel {
+        background: rgba(15, 23, 42, 0.6);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+      }
+
+      /* Custom Scrollbar */
+      .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+      }
+      .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+      }
+
+      /* HAND CARD SPECIFIC: Super Zoom & Straighten */
+      .hand-card-wrap {
+        transition: transform 0.2s cubic-bezier(0.1, 0.7, 0.1, 1), margin 0.2s, z-index 0s;
+        transform-origin: bottom center; /* Key for fanning effect */
+        will-change: transform;
+      }
+      
+      /* DRAW ANIMATION: Fly in from Draw Pile (Bottom Left) */
+      @keyframes card-fly-in {
+        0% {
+          opacity: 0;
+          transform: translate(-40vw, 40vh) scale(0.2) rotate(-90deg);
+        }
+        100% {
+          opacity: 1;
+          transform: translate(0, 0) scale(1) rotate(0deg); 
+        }
+      }
+
+      .animate-draw {
+        animation: card-fly-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+      }
+
+      /* DISCARD ANIMATION: Fly out to Discard Pile (Bottom Right) */
+      @keyframes card-fly-out {
+        0% {
+          opacity: 1;
+          transform: translate(0, 0) scale(1) rotate(0deg);
+        }
+        100% {
+          opacity: 0;
+          transform: translate(40vw, 20vh) scale(0.2) rotate(45deg);
+        }
+      }
+
+      .animate-discard {
+        animation: card-fly-out 0.5s cubic-bezier(0.55, 0.055, 0.675, 0.19) forwards;
+      }
+      
+      /* Shake Animation for error */
+      @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+        20%, 40%, 60%, 80% { transform: translateX(5px); }
+      }
+      .animate-shake {
+        animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+      }
+
+      /* Combat Animations */
+      
+      /* Player Attack (Lunge Right) */
+      @keyframes attack-right {
+        0% { transform: translateX(0) scale(1); }
+        20% { transform: translateX(-20px) scale(0.9); } /* Wind up */
+        40% { transform: translateX(150px) scale(1.1); } /* Strike */
+        100% { transform: translateX(0) scale(1); } /* Return */
+      }
+      .animate-attack-player {
+        animation: attack-right 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+      }
+
+      /* Enemy Attack (Lunge Left) */
+      @keyframes attack-left {
+        0% { transform: translateX(0) scale(1); }
+        20% { transform: translateX(20px) scale(0.9); }
+        40% { transform: translateX(-150px) scale(1.1); }
+        100% { transform: translateX(0) scale(1); }
+      }
+      .animate-attack-enemy {
+        animation: attack-left 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+      }
+
+      /* Taking Damage (Hit Flash & Shake) */
+      @keyframes hit-shake {
+        0% { transform: translate(0, 0) rotate(0deg); filter: brightness(1); }
+        15% { transform: translate(-10px, 0) rotate(-5deg); filter: brightness(2) sepia(1) hue-rotate(-50deg) saturate(5); } /* Flash Red */
+        30% { transform: translate(10px, 0) rotate(5deg); filter: brightness(2) sepia(1) hue-rotate(-50deg) saturate(5); }
+        45% { transform: translate(-10px, 0) rotate(-5deg); filter: brightness(1); }
+        100% { transform: translate(0, 0) rotate(0deg); filter: brightness(1); }
+      }
+      .animate-hit {
+        animation: hit-shake 0.5s ease-out;
+      }
+
+      /* Floating Damage Numbers */
+      @keyframes float-up-fade {
+        0% { transform: translateY(0) scale(0.5); opacity: 0; }
+        20% { transform: translateY(-10px) scale(1.2); opacity: 1; }
+        100% { transform: translateY(-80px) scale(1); opacity: 0; }
+      }
+      .animate-damage-text {
+        animation: float-up-fade 1.0s ease-out forwards;
+        text-shadow: 2px 2px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+      }
+
+      /* Shield Pop Animation */
+      @keyframes shield-pop {
+        0% { transform: scale(0.8); opacity: 0.5; }
+        50% { transform: scale(1.3); opacity: 1; filter: brightness(1.5); }
+        100% { transform: scale(1); opacity: 1; }
+      }
+      .animate-shield-pop {
+        animation: shield-pop 0.4s ease-out;
+      }
+
+      /* Success Checkmark Animation */
+      @keyframes success-pulse {
+        0% { transform: scale(0.8); opacity: 0; }
+        50% { transform: scale(1.2); opacity: 1; }
+        100% { transform: scale(1); opacity: 1; }
+      }
+      .animate-success-pulse {
+        animation: success-pulse 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+      }
+      
+      /* Map Line Animation */
+      @keyframes dash {
+        to { stroke-dashoffset: -20; }
+      }
+      .map-path-active {
+        animation: dash 1s linear infinite;
+      }
+
+      /* Gold Shine for Mastered Cards */
+      .gold-shine {
+        position: relative;
+        overflow: hidden;
+      }
+      .gold-shine::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(45deg, transparent 0%, rgba(255,255,255,0.2) 50%, transparent 100%);
+        animation: shine 3s infinite linear;
+        pointer-events: none;
+      }
+      @keyframes shine {
+        0% { transform: translateX(-150%); }
+        100% { transform: translateX(150%); }
+      }
+
+      @keyframes fade-in-up {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .animate-fade-in-up {
+        animation: fade-in-up 0.5s ease-out forwards;
+      }
+
+      @keyframes bounce-in {
+        0% { transform: scale(0.8); opacity: 0; }
+        50% { transform: scale(1.05); opacity: 1; }
+        100% { transform: scale(1); opacity: 1; }
+      }
+      .animate-bounce-in {
+        animation: bounce-in 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+      }
+
+      @keyframes float {
+        0%, 100% { transform: translateY(0px); }
+        50% { transform: translateY(-10px); }
+      }
+      .animate-float {
+        animation: float 3s ease-in-out infinite;
+      }
+
+      .image-pixelated {
+        image-rendering: pixelated;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/"
+  }
+}
+</script>
+</head>
+  <body>
+    <div id="root"></div>
+     <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
